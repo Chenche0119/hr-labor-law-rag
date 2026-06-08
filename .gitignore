@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+chroma_db/
+data/laws/*.json
+data/books/processed_books.json
+eval/eval_results.json
+*.egg-info/
+.DS_Store
