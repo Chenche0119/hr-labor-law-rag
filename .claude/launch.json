@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "hr-rag-preview",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8787", "--directory", "static"],
-      "port": 8787
+      "name": "hr-rag-server",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "python", "server.py"],
+      "port": 5001
     }
   ]
 }

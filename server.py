@@ -71,6 +71,6 @@ def health():
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5000))
+    port = int(os.getenv("PORT", 5001))
     print(f"\n🔗 開啟瀏覽器前往 http://localhost:{port}\n")
     app.run(debug=False, port=port)
