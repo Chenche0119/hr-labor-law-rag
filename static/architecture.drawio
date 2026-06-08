@@ -1,0 +1,206 @@
+<mxfile host="app.diagrams.net" agent="Claude">
+  <diagram name="HR勞動法規RAG系統架構" id="hr-rag-architecture">
+    <mxGraphModel dx="1556" dy="824" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1;fontColor=#1A237E;" value="企業 HR 勞動法規查詢 AI — 系統架構流程圖" vertex="1">
+          <mxGeometry height="40" width="800" x="400" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="offline-container" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F57F17;fontSize=14;fontStyle=1;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;strokeWidth=2;dashed=1;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;📦 離線建置階段（資料準備）&lt;/font&gt;" vertex="1">
+          <mxGeometry height="420" width="700" x="40" y="71" as="geometry" />
+        </mxCell>
+        <mxCell id="src-law" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#E3F2FD;strokeColor=#1976D2;fontSize=11;" value="📜 全國法規資料庫&#xa;（JSON 格式）&#xa;&#xa;勞基法、勞退條例、&#xa;性平法、勞保條例&#xa;約 400-600 條" vertex="1">
+          <mxGeometry height="120" width="160" x="68" y="151" as="geometry" />
+        </mxCell>
+        <mxCell id="src-book" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#E3F2FD;strokeColor=#1976D2;fontSize=11;" value="📚 勞工法教授著作&#xa;（Word/PDF）&#xa;&#xa;5 本實務解說書&#xa;含案例分析、&#xa;條文解釋" vertex="1">
+          <mxGeometry height="120" width="160" x="68" y="301" as="geometry" />
+        </mxCell>
+        <mxCell id="chunking" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#F57C00;fontSize=11;" value="✂️ 文字切割&#xa;（Chunking）&#xa;&#xa;法條：按「條」切&#xa;書籍：按章節/段落切" vertex="1">
+          <mxGeometry height="100" width="140" x="278" y="221" as="geometry" />
+        </mxCell>
+        <mxCell id="embedding" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#F57C00;fontSize=11;" value="🧮 向量化&#xa;（Embedding）&#xa;&#xa;OpenAI&#xa;text-embedding-&#xa;3-small" vertex="1">
+          <mxGeometry height="100" width="140" x="458" y="221" as="geometry" />
+        </mxCell>
+        <mxCell id="db-law" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#E8F5E9;strokeColor=#388E3C;fontSize=11;fontStyle=1;" value="🗄️ 法條庫&#xa;（ChromaDB&#xa;Collection）" vertex="1">
+          <mxGeometry height="100" width="80" x="628" y="151" as="geometry" />
+        </mxCell>
+        <mxCell id="db-book" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#E8F5E9;strokeColor=#388E3C;fontSize=11;fontStyle=1;" value="🗄️ 書籍庫&#xa;（ChromaDB&#xa;Collection）" vertex="1">
+          <mxGeometry height="100" width="80" x="628" y="291" as="geometry" />
+        </mxCell>
+        <mxCell id="arr-1" edge="1" parent="1" source="src-law" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F57F17;strokeWidth=2;" target="chunking">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arr-2" edge="1" parent="1" source="src-book" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F57F17;strokeWidth=2;" target="chunking">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arr-3" edge="1" parent="1" source="chunking" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F57F17;strokeWidth=2;" target="embedding">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arr-4" edge="1" parent="1" source="embedding" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F57F17;strokeWidth=2;" target="db-law">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arr-5" edge="1" parent="1" source="embedding" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F57F17;strokeWidth=2;" target="db-book">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="offline-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontStyle=2;fontColor=#F57F17;" value="✏️ 重點：把書「拆頁→翻譯成數字座標→存進可搜尋的資料庫」" vertex="1">
+          <mxGeometry height="30" width="640" x="80" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="online-container" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8EAF6;strokeColor=#283593;fontSize=14;fontStyle=1;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;strokeWidth=2;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;🚀 線上查詢階段（使用者實際提問）&lt;/font&gt;" vertex="1">
+          <mxGeometry height="1080" width="780" x="780" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="user" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;html=1;outlineConnect=0;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=11;" value="&lt;span&gt;👤 HR 使用者&lt;br&gt;（自然語言提問）&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="40" x="940" y="206" as="geometry" />
+        </mxCell>
+        <mxCell id="streamlit" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCCBC;strokeColor=#D84315;fontSize=12;fontStyle=1;" value="🖥️ Streamlit 介面&#xa;使用者輸入問題" vertex="1">
+          <mxGeometry height="50" width="220" x="1060" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="guardrail" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=12;fontStyle=1;strokeWidth=2;" value="🚪 第 1 關：Guardrail（守門員）&#xa;&#xa;判斷：「這問題該不該回答？」&#xa;範疇 = 台灣勞工法" vertex="1">
+          <mxGeometry height="80" width="300" x="1020" y="301" as="geometry" />
+        </mxCell>
+        <mxCell id="guardrail-block" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCDD2;strokeColor=#B71C1C;fontSize=11;dashed=1;" value="❌ 攔截&#xa;&#xa;回覆：「超出本系統服務範疇」&#xa;（例：天氣、寫程式、稅務）" vertex="1">
+          <mxGeometry height="70" width="200" x="868" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="router" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=12;fontStyle=1;strokeWidth=2;" value="🚦 第 2 關：Router（分流員）&#xa;&#xa;判斷：「這問題該怎麼檢索？」" vertex="1">
+          <mxGeometry height="80" width="320" x="1139" y="421" as="geometry" />
+        </mxCell>
+        <mxCell id="type-a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=11;fontStyle=1;" value="🅰️ A 型：直接查詢&#xa;&#xa;例：「特休幾天？」&#xa;「加班費怎麼算？」&#xa;&#xa;▸ 只查法條庫" vertex="1">
+          <mxGeometry height="120" width="220" x="869" y="550" as="geometry" />
+        </mxCell>
+        <mxCell id="type-b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1565C0;fontSize=11;fontStyle=1;" value="🅱️ B 型：爭議解釋&#xa;&#xa;例：「承攬 vs 僱傭&#xa;怎麼區分？」&#xa;&#xa;▸ 書籍庫 Top-5 + 法條庫 Top-2" vertex="1">
+          <mxGeometry height="120" width="220" x="1199" y="550" as="geometry" />
+        </mxCell>
+        <mxCell id="confidence" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#F8BBD0;strokeColor=#AD1457;fontSize=11;fontStyle=1;" value="🎯 第 3 關：信心門檻&#xa;（僅 A 型）&#xa;&#xa;ChromaDB 距離分數&#xa;是否達閾值？" vertex="1">
+          <mxGeometry height="130" width="220" x="869" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="no-answer" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCDD2;strokeColor=#B71C1C;fontSize=11;dashed=1;" value="⚠️ 信心不足&#xa;&#xa;回覆：「現行法規無明確規定」&#xa;不進入 LLM 生成" vertex="1">
+          <mxGeometry height="70" width="220" x="869" y="875" as="geometry" />
+        </mxCell>
+        <mxCell id="context" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D1C4E9;strokeColor=#4527A0;fontSize=11;fontStyle=1;" value="📋 Context 組裝&#xa;（LangChain 框架）&#xa;&#xa;將檢索到的法條/書籍內容&#xa;＋ System Prompt&#xa;＋ 使用者問題" vertex="1">
+          <mxGeometry height="100" width="320" x="1149" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="llm" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B39DDB;strokeColor=#311B92;fontSize=12;fontStyle=1;strokeWidth=2;" value="🤖 第 4 關：LLM 生成回答&#xa;&#xa;Claude Haiku 4.5（開發期）&#xa;Claude Sonnet 4.6 / Opus 4.7（上架版）&#xa;&#xa;產出：結論 → 法條依據 → 白話說明" vertex="1">
+          <mxGeometry height="110" width="320" x="1149" y="840" as="geometry" />
+        </mxCell>
+        <mxCell id="output" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCCBC;strokeColor=#D84315;fontSize=12;fontStyle=1;strokeWidth=2;" value="✅ 顯示結果&#xa;&#xa;回答內容 + 來源標示&#xa;（法條條號 / 書籍章節）" vertex="1">
+          <mxGeometry height="80" width="300" x="1159" y="990" as="geometry" />
+        </mxCell>
+        <mxCell id="o-arr-1" edge="1" parent="1" source="user" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#283593;strokeWidth=2;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="985" y="239" />
+            </Array>
+            <mxPoint x="890" y="203.5" as="sourcePoint" />
+            <mxPoint x="1060" y="238.5" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="o-arr-2" edge="1" parent="1" source="streamlit" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#283593;strokeWidth=2;" target="guardrail">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="o-arr-3" edge="1" parent="1" source="guardrail" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#C62828;strokeWidth=2;dashed=1;fontSize=10;fontStyle=1;fontColor=#C62828;" target="guardrail-block" value="不在範疇">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="o-arr-4" edge="1" parent="1" source="guardrail" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#2E7D32;strokeWidth=2;fontSize=10;fontStyle=1;fontColor=#2E7D32;" target="router" value="通過">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="o-arr-5" edge="1" parent="1" source="router" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#2E7D32;strokeWidth=2;fontSize=10;fontStyle=1;" target="type-a" value="&lt;span style=&quot;color: rgb(83, 157, 86);&quot;&gt;A型檢索&lt;/span&gt;">
+          <mxGeometry relative="1" x="0.001" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="960" y="500" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="o-arr-7" edge="1" parent="1" source="type-a" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#283593;strokeWidth=2;" target="confidence">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="o-arr-8" edge="1" parent="1" source="confidence" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#C62828;strokeWidth=2;dashed=1;fontSize=10;fontStyle=1;fontColor=#C62828;" target="no-answer" value="否">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="o-arr-9" edge="1" parent="1" source="confidence" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#2E7D32;strokeWidth=2;fontSize=10;fontStyle=1;fontColor=#2E7D32;" target="context" value="是">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1060" y="750" />
+              <mxPoint x="1060" y="750" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="o-arr-10" edge="1" parent="1" source="type-b" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#283593;strokeWidth=2;" target="context">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="o-arr-11" edge="1" parent="1" source="context" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#283593;strokeWidth=2;" target="llm">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="o-arr-12" edge="1" parent="1" source="llm" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#283593;strokeWidth=2;" target="output">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cross-1" edge="1" parent="1" source="db-law" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#388E3C;strokeWidth=2;dashed=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;fontSize=10;fontStyle=1;fontColor=#388E3C;" target="type-a" value="A型檢索">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="760" y="170" />
+              <mxPoint x="760" y="610" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cross-2" edge="1" parent="1" source="db-book" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#388E3C;strokeWidth=2;dashed=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;fontSize=10;fontStyle=1;fontColor=#388E3C;" target="type-b" value="B型檢索">
+          <mxGeometry relative="1" x="-0.0001" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="750" y="310" />
+              <mxPoint x="750" y="530" />
+              <mxPoint x="1390" y="530" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cross-3" edge="1" parent="1" source="db-law" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#388E3C;strokeWidth=2;dashed=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="type-b">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="770" y="170" />
+              <mxPoint x="770" y="520" />
+              <mxPoint x="1390" y="520" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend-container" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#616161;fontSize=12;fontStyle=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=8;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;📖 圖例說明&lt;/font&gt;" vertex="1">
+          <mxGeometry height="200" width="700" x="40" y="531" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-1" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="🚪 Guardrail = 範疇控制（守門員）：擋掉與勞動法無關的問題，省 API 成本" vertex="1">
+          <mxGeometry height="22" width="660" x="60" y="574" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="🚦 Router = 策略選擇（分流員）：判斷問題類型，決定走 A 還是 B 路線" vertex="1">
+          <mxGeometry height="22" width="660" x="60" y="599" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-3" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="🎯 信心門檻 = Advanced RAG 的 Post-Retrieval Filtering，避免 hallucination" vertex="1">
+          <mxGeometry height="22" width="660" x="60" y="624" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-4" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="🅰️ A 型 = 答案在法條白紙黑字寫死的問題（像查字典）" vertex="1">
+          <mxGeometry height="22" width="660" x="60" y="648" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-5" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="🅱️ B 型 = 需要案例與見解輔助的爭議問題（像問教授）" vertex="1">
+          <mxGeometry height="22" width="660" x="60" y="674" as="geometry" />
+        </mxCell>
+        <mxCell id="lg-6" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="🔗 LangChain = 把所有元件串起來的框架（黏著劑）" vertex="1">
+          <mxGeometry height="22" width="660" x="60" y="699" as="geometry" />
+        </mxCell>
+        <mxCell id="rag-positioning" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F7FA;strokeColor=#00838F;fontSize=11;fontStyle=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="&lt;font style=&quot;&quot;&gt;&lt;span style=&quot;font-size: 14px;&quot;&gt;🏗️ RAG 架構定位&lt;/span&gt;&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Naive RAG：固定檢索  ❌&lt;br&gt;Advanced RAG：信心門檻  ✅ 核心機制&lt;br&gt;Modular RAG：Router 路由  ✅ 路由層設計&lt;/font&gt;&lt;/font&gt;" vertex="1">
+          <mxGeometry height="159" width="340" x="40" y="771" as="geometry" />
+        </mxCell>
+        <mxCell id="tech-stack" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#AD1457;fontSize=11;fontStyle=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;" value="&lt;font style=&quot;&quot;&gt;&lt;font style=&quot;font-size: 14px;&quot;&gt;🛠️ 技術選型總覽&lt;br&gt;&lt;/font&gt;&lt;br&gt;&lt;span style=&quot;font-size: 12px;&quot;&gt;UI：Streamlit&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;font-size: 12px;&quot;&gt;LLM：Claude Haiku/Sonnet/Opus&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;font-size: 12px;&quot;&gt;Embedding：OpenAI text-embedding-3-small&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;font-size: 12px;&quot;&gt;向量資料庫：ChromaDB&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;font-size: 12px;&quot;&gt;框架：LangChain&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;font-size: 12px;&quot;&gt;資料處理：python-docx / pdfplumber&lt;/span&gt;&lt;/font&gt;" vertex="1">
+          <mxGeometry height="160" width="340" x="400" y="771" as="geometry" />
+        </mxCell>
+        <mxCell id="o-arr-6" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1565C0;strokeWidth=2;fontSize=10;fontStyle=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="type-b" value="&lt;font style=&quot;color: light-dark(rgb(83, 157, 86), rgb(26, 55, 80)); background-color: light-dark(rgb(255, 255, 255), rgb(255, 255, 255));&quot;&gt;B型檢索&lt;/font&gt;">
+          <mxGeometry relative="1" x="-0.1111" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="1263" y="510" />
+              <mxPoint x="1310" y="510" />
+              <mxPoint x="1310" y="550" />
+            </Array>
+            <mxPoint x="1263" y="500" as="sourcePoint" />
+            <mxPoint x="1316.18" y="553.4800000000001" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
