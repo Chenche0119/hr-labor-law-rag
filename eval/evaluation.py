@@ -67,8 +67,18 @@ def run_guardrail_router_eval():
     print("=" * 60)
 
     results = {
-        "guardrail_intercept": {"correct": 0, "total": len(TEST_CASES["out_of_scope"])},
-        "guardrail_pass": {"correct": 0, "total": len(TEST_CASES["type_a"]) + len(TEST_CASES["type_b"]) + len(TEST_CASES["no_law"])},
+        "guardrail_intercept": {
+            "correct": 0,
+            "total": len(TEST_CASES["out_of_scope"]),
+        },
+        "guardrail_pass": {
+            "correct": 0,
+            "total": (
+                len(TEST_CASES["type_a"])
+                + len(TEST_CASES["type_b"])
+                + len(TEST_CASES["no_law"])
+            ),
+        },
         "router_a": {"correct": 0, "total": len(TEST_CASES["type_a"])},
         "router_b": {"correct": 0, "total": len(TEST_CASES["type_b"])},
     }
@@ -84,7 +94,9 @@ def run_guardrail_router_eval():
 
     # Guardrail 放行準確率
     print("\n[Guardrail 放行測試]")
-    in_scope = TEST_CASES["type_a"] + TEST_CASES["type_b"] + TEST_CASES["no_law"]
+    in_scope = (
+        TEST_CASES["type_a"] + TEST_CASES["type_b"] + TEST_CASES["no_law"]
+    )
     for q in in_scope:
         passed = engine.guardrail(q)
         correct = passed
@@ -124,7 +136,9 @@ def run_guardrail_router_eval():
     return results
 
 
-def run_comparison_experiment(questions: list[str], condition: str) -> list[dict]:
+def run_comparison_experiment(
+    questions: list[str], condition: str
+) -> list[dict]:
     """執行對照實驗，回傳每題的答案與評分空間"""
     print(f"\n[對照實驗：{condition}]")
     records = []
@@ -156,7 +170,9 @@ def main():
     print("\n" + "=" * 60)
     print("評估二：對照實驗（A型+B型 各10題）")
     comparison_qs = TEST_CASES["type_a"][:5] + TEST_CASES["type_b"][:5]
-    records = run_comparison_experiment(comparison_qs, condition="Claude Haiku 4.5")
+    records = run_comparison_experiment(
+        comparison_qs, condition="Claude Opus 4.8"
+    )
 
     # 輸出結果 JSON
     output = {

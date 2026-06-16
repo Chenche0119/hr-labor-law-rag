@@ -1,22 +1,20 @@
-"""
-處理勞工法書籍（Word / PDF），切割成段落 chunk 並輸出 JSON
-"""
+"""Process labor-law books (Word / PDF) into paragraph chunks as JSON."""
 import json
 import re
+import sys
 from pathlib import Path
 
 import pdfplumber
 from docx import Document
 
-BOOKS_INPUT_DIR = Path(__file__).parent.parent / "data" / "books"
-OUTPUT_FILE = BOOKS_INPUT_DIR / "processed_books.json"
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from src.config import BOOKS_DIR, CHUNK_SIZE, OVERLAP
 
-CHUNK_SIZE = 400   # 每個 chunk 目標字元數
-OVERLAP = 50       # 段落間重疊字元數
+OUTPUT_FILE = BOOKS_DIR / "processed_books.json"
 
 
 def chunk_text(text: str, source_meta: dict) -> list[dict]:
-    """將長文本按 CHUNK_SIZE 切割，保留 metadata"""
+    """Split long text by CHUNK_SIZE while keeping metadata."""
     text = text.strip()
     if len(text) <= CHUNK_SIZE:
         return [{"content": text, **source_meta}]
@@ -25,7 +23,7 @@ def chunk_text(text: str, source_meta: dict) -> list[dict]:
     start = 0
     while start < len(text):
         end = start + CHUNK_SIZE
-        # 嘗試在句子邊界切割
+        # Try to break on a sentence boundary
         if end < len(text):
             for sep in ["。", "；", "\n"]:
                 pos = text.rfind(sep, start, end)
@@ -51,15 +49,18 @@ def process_docx(file_path: Path) -> list[dict]:
         if not text:
             continue
 
-        # 判斷是否為章節標題（粗體或短文字）
-        is_heading = (
-            para.style.name.startswith("Heading")
-            or (len(text) < 30 and any(r.bold for r in para.runs if r.text.strip()))
+        # Heading detection (Heading style, or short bold text)
+        is_heading = para.style.name.startswith("Heading") or (
+            len(text) < 30 and any(r.bold for r in para.runs if r.text.strip())
         )
 
         if is_heading:
             if buffer:
-                meta = {"book": book_name, "section": current_section, "source": f"《{book_name}》{current_section}"}
+                meta = {
+                    "book": book_name,
+                    "section": current_section,
+                    "source": f"《{book_name}》{current_section}",
+                }
                 chunks.extend(chunk_text(buffer, meta))
                 buffer = ""
             current_section = text
@@ -67,7 +68,11 @@ def process_docx(file_path: Path) -> list[dict]:
             buffer += text + "\n"
 
     if buffer:
-        meta = {"book": book_name, "section": current_section, "source": f"《{book_name}》{current_section}"}
+        meta = {
+            "book": book_name,
+            "section": current_section,
+            "source": f"《{book_name}》{current_section}",
+        }
         chunks.extend(chunk_text(buffer, meta))
 
     print(f"[OK] {book_name} (docx): {len(chunks)} chunks")
@@ -84,7 +89,7 @@ def process_pdf(file_path: Path) -> list[dict]:
             text = page.extract_text() or ""
             full_text += text + "\n"
 
-    # 按段落切割（兩個以上換行為段落分隔）
+    # Split on blank lines (two or more newlines = paragraph break)
     paragraphs = re.split(r"\n{2,}", full_text)
     buffer = ""
     for para in paragraphs:
@@ -93,7 +98,11 @@ def process_pdf(file_path: Path) -> list[dict]:
             continue
         buffer += para + "\n"
         if len(buffer) >= CHUNK_SIZE:
-            meta = {"book": book_name, "section": "", "source": f"《{book_name}》"}
+            meta = {
+                "book": book_name,
+                "section": "",
+                "source": f"《{book_name}》",
+            }
             chunks.extend(chunk_text(buffer, meta))
             buffer = ""
 
@@ -108,7 +117,7 @@ def process_pdf(file_path: Path) -> list[dict]:
 def main():
     all_chunks = []
 
-    for f in BOOKS_INPUT_DIR.iterdir():
+    for f in BOOKS_DIR.iterdir():
         if f.suffix.lower() == ".docx":
             all_chunks.extend(process_docx(f))
         elif f.suffix.lower() == ".pdf":
@@ -117,7 +126,7 @@ def main():
     with open(OUTPUT_FILE, "w", encoding="utf-8") as fp:
         json.dump(all_chunks, fp, ensure_ascii=False, indent=2)
 
-    print(f"\n完成！共 {len(all_chunks)} 個書籍 chunks，儲存至 {OUTPUT_FILE}")
+    print(f"\nDone: {len(all_chunks)} book chunks -> {OUTPUT_FILE}")
 
 
 if __name__ == "__main__":

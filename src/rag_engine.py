@@ -1,28 +1,28 @@
-"""
-RAG Engine：Guardrail → Router → Retrieval → LLM 生成
-- Embedding: sentence-transformers（本地，免費）
-- LLM: Groq API（免費）
+"""RAG Engine: Guardrail -> Router -> Retrieval -> LLM generation.
+
+- Embedding: sentence-transformers (local, free)
+- LLM: Anthropic Claude
 """
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+import anthropic
 import chromadb
 from dotenv import load_dotenv
-from groq import Groq
 from sentence_transformers import SentenceTransformer
 
+from src.config import (
+    ANSWER_MAX_TOKENS,
+    CHROMA_DIR,
+    CLASSIFY_MAX_TOKENS,
+    CONFIDENCE_THRESHOLD,
+    EMBED_MODEL_NAME,
+    LLM_MODEL,
+)
+
 load_dotenv(Path(__file__).parent.parent / ".env")
-
-# 多語言 embedding 模型（支援中文，本地執行）
-EMBED_MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
-# Groq 免費模型
-LLM_MODEL = "llama-3.3-70b-versatile"
-CHROMA_DIR = Path(__file__).parent.parent / "chroma_db"
-
-# 信心門檻（cosine distance，越小越相關）
-CONFIDENCE_THRESHOLD = 0.6
 
 _embed_model = None
 
@@ -30,7 +30,7 @@ _embed_model = None
 def get_embed_model() -> SentenceTransformer:
     global _embed_model
     if _embed_model is None:
-        print("[載入] Embedding 模型中...")
+        print("[load] embedding model...")
         _embed_model = SentenceTransformer(EMBED_MODEL_NAME)
     return _embed_model
 
@@ -53,7 +53,9 @@ class RAGResult:
 
 class RAGEngine:
     def __init__(self):
-        self.groq = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        self.client = anthropic.Anthropic(
+            api_key=os.getenv("ANTHROPIC_API_KEY")
+        )
         self.embed_model = get_embed_model()
         self.chroma = chromadb.PersistentClient(path=str(CHROMA_DIR))
         self._laws_col = None
@@ -78,20 +80,23 @@ class RAGEngine:
     def _embed(self, text: str) -> list[float]:
         return self.embed_model.encode(text).tolist()
 
-    def _llm(self, system: str, user: str) -> str:
-        resp = self.groq.chat.completions.create(
+    def _llm(
+        self, system: str, user: str, *, max_tokens: int, thinking: bool = False
+    ) -> str:
+        kwargs = {}
+        if thinking:
+            kwargs["thinking"] = {"type": "adaptive"}
+        resp = self.client.messages.create(
             model=LLM_MODEL,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            max_tokens=1024,
-            temperature=0.2,
+            max_tokens=max_tokens,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+            **kwargs,
         )
-        return resp.choices[0].message.content
+        return "".join(b.text for b in resp.content if b.type == "text")
 
     # ------------------------------------------------------------------
-    # 第一層：Guardrail
+    # Layer 1: Guardrail
     # ------------------------------------------------------------------
     def guardrail(self, question: str) -> bool:
         system = (
@@ -101,47 +106,62 @@ class RAGEngine:
             "YES = 屬於台灣勞工法範疇\n"
             "NO = 不屬於（如天氣、程式設計、所得稅、董事薪資等）"
         )
-        answer = self._llm(system, question).strip().upper()
-        return answer.startswith("Y")
+        answer = self._llm(system, question, max_tokens=CLASSIFY_MAX_TOKENS)
+        return answer.strip().upper().startswith("Y")
 
     # ------------------------------------------------------------------
-    # 第二層：Router
+    # Layer 2: Router
     # ------------------------------------------------------------------
     def router(self, question: str) -> Literal["A", "B"]:
         system = (
             "你是一個問題類型分類器。將問題分為：\n"
-            "A = 直接查詢型：問特定法條、數字、明確規定（例：特休幾天、加班費怎麼算）\n"
-            "B = 爭議解釋型：問模糊地帶、實務見解、身份界定（例：承攬與僱傭如何區分）\n"
+            "A = 直接查詢型：問特定法條、數字、明確規定"
+            "（例：特休幾天、加班費怎麼算）\n"
+            "B = 爭議解釋型：問模糊地帶、實務見解、身份界定"
+            "（例：承攬與僱傭如何區分）\n"
             "只回答 A 或 B，不要其他文字。"
         )
-        answer = self._llm(system, question).strip().upper()
-        return "A" if answer.startswith("A") else "B"
+        answer = self._llm(system, question, max_tokens=CLASSIFY_MAX_TOKENS)
+        return "A" if answer.strip().upper().startswith("A") else "B"
 
     # ------------------------------------------------------------------
-    # 檢索
+    # Retrieval
     # ------------------------------------------------------------------
-    def _query_col(self, col, embedding: list[float], n: int) -> list[RetrievedChunk]:
+    def _query_col(
+        self, col, embedding: list[float], n: int
+    ) -> list[RetrievedChunk]:
         count = col.count()
         if count == 0:
             return []
-        results = col.query(query_embeddings=[embedding], n_results=min(n, count))
+        results = col.query(
+            query_embeddings=[embedding], n_results=min(n, count)
+        )
         chunks = []
         for i, doc in enumerate(results["documents"][0]):
             meta = results["metadatas"][0][i]
             dist = results["distances"][0][i]
             source = meta.get("source", meta.get("law_name", "未知來源"))
             col_name = "laws" if col == self.laws_col else "books"
-            chunks.append(RetrievedChunk(content=doc, source=source, distance=dist, collection=col_name))
+            chunks.append(
+                RetrievedChunk(
+                    content=doc,
+                    source=source,
+                    distance=dist,
+                    collection=col_name,
+                )
+            )
         return chunks
 
     def retrieve_type_a(self, embedding: list[float]) -> list[RetrievedChunk]:
         return self._query_col(self.laws_col, embedding, n=5)
 
     def retrieve_type_b(self, embedding: list[float]) -> list[RetrievedChunk]:
-        return self._query_col(self.books_col, embedding, n=5) + self._query_col(self.laws_col, embedding, n=2)
+        books = self._query_col(self.books_col, embedding, n=5)
+        laws = self._query_col(self.laws_col, embedding, n=2)
+        return books + laws
 
     # ------------------------------------------------------------------
-    # LLM 生成
+    # LLM generation
     # ------------------------------------------------------------------
     SYSTEM_PROMPT = (
         "你是一位專業的台灣勞動法規顧問，專門協助企業HR人員查詢與理解勞動相關法規。\n"
@@ -153,17 +173,27 @@ class RAGEngine:
         "回答格式：結論 → 法條依據 → 白話說明"
     )
 
-    def generate_answer(self, question: str, chunks: list[RetrievedChunk]) -> str:
+    def generate_answer(
+        self, question: str, chunks: list[RetrievedChunk]
+    ) -> str:
         context = "\n\n".join(f"【{c.source}】\n{c.content}" for c in chunks)
-        return self._llm(self.SYSTEM_PROMPT, f"參考資料：\n{context}\n\n使用者問題：{question}")
+        return self._llm(
+            self.SYSTEM_PROMPT,
+            f"參考資料：\n{context}\n\n使用者問題：{question}",
+            max_tokens=ANSWER_MAX_TOKENS,
+            thinking=True,
+        )
 
     # ------------------------------------------------------------------
-    # 主要查詢入口
+    # Main query entry point
     # ------------------------------------------------------------------
     def query(self, question: str) -> RAGResult:
         if not self.guardrail(question):
             return RAGResult(
-                answer="抱歉，本系統僅提供台灣勞工法律相關問題的查詢服務，您的問題超出服務範疇。",
+                answer=(
+                    "抱歉，本系統僅提供台灣勞工法律相關問題的查詢服務，"
+                    "您的問題超出服務範疇。"
+                ),
                 query_type="out_of_scope",
                 guardrail_passed=False,
             )
@@ -175,7 +205,10 @@ class RAGEngine:
             chunks = self.retrieve_type_a(embedding)
             if not chunks or chunks[0].distance > CONFIDENCE_THRESHOLD:
                 return RAGResult(
-                    answer="根據現行法規資料庫，目前無明確的法條規定對應您的問題。建議諮詢專業法律顧問或查閱勞動部最新公告。",
+                    answer=(
+                        "根據現行法規資料庫，目前無明確的法條規定對應您的問題。"
+                        "建議諮詢專業法律顧問或查閱勞動部最新公告。"
+                    ),
                     query_type="no_law",
                     chunks=chunks,
                 )

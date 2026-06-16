@@ -39,15 +39,11 @@
 - **雙層保護機制**：Guardrail 過濾範疇外問題，避免 API 浪費
 - **智慧路由**：自動判斷問題類型，選擇最適合的檢索策略
 - **來源可追溯**：每個回答都附上引用的法條條號或書籍章節
-- **完全免費**：使用 Groq 免費 API + sentence-transformers 本地 Embedding
+- **本地免費 Embedding**：sentence-transformers 本地執行，無需付費 API（LLM 採 Claude API，需付費）
 
 ---
 
 ## RAG 架構說明
-
-![系統架構流程圖](static/architecture.png)
-
-> [點此開啟互動版架構圖](https://viewer.diagrams.net/?url=https://raw.githubusercontent.com/Chenche0119/hr-labor-law-rag/main/static/architecture.drawio)
 
 ### 問題類型說明
 
@@ -64,7 +60,7 @@
 |------|------|------|
 | 前端 | 原生 HTML / CSS / JavaScript | 單頁應用，無需框架 |
 | 後端 | Flask 3.0 | 輕量 Python Web 框架 |
-| LLM | Groq API（llama-3.3-70b） | **免費**，速度快 |
+| LLM | Claude API（Opus 4.8） | 品質最佳，需 API Key |
 | Embedding | sentence-transformers（本地） | **免費**，支援中文多語言 |
 | 向量資料庫 | ChromaDB | 本地持久化儲存 |
 | Embedding 模型 | paraphrase-multilingual-MiniLM-L12-v2 | 多語言，約 500MB |
@@ -73,16 +69,14 @@
 
 ## 資料來源
 
-### 法條庫（280 條）
+### 法條庫
 
-從[全國法規資料庫](https://law.moj.gov.tw)自動下載：
+從[全國法規資料庫](https://law.moj.gov.tw)自動下載以下四部法規：
 
-| 法規名稱 | 條數 |
-|---------|------|
-| 勞動基準法 | 86 條 |
-| 勞工退休金條例 | 58 條 |
-| 性別平等工作法 | 45 條 |
-| 勞工保險條例 | 91 條 |
+- 勞動基準法
+- 勞工退休金條例
+- 性別平等工作法
+- 勞工保險條例
 
 ### 書籍庫（需自行準備）
 
@@ -95,8 +89,8 @@
 ### 前置需求
 
 - Python 3.11+
-- [uv](https://docs.astral.sh/uv/)（建議）或 pip
-- [Groq API Key](https://console.groq.com)（免費註冊）
+- [uv](https://docs.astral.sh/uv/)
+- [Anthropic API Key](https://console.anthropic.com)
 
 ### 安裝步驟
 
@@ -107,40 +101,38 @@ git clone https://github.com/Chenche0119/hr-labor-law-rag.git
 cd hr-labor-law-rag
 ```
 
-**2. 建立虛擬環境並安裝依賴**
+**2. 安裝依賴**
 
 ```bash
-uv venv .venv
-source .venv/bin/activate      # Windows: .venv\Scripts\activate
-uv pip install -r requirements.txt
+uv sync
 ```
 
 > 首次執行時 sentence-transformers 會自動下載模型（約 500MB），需要網路連線。
 
 **3. 設定 API Key**
 
-前往 [console.groq.com](https://console.groq.com) 免費註冊並取得 API Key，然後：
+前往 [console.anthropic.com](https://console.anthropic.com) 取得 API Key，然後：
 
 ```bash
 cp .env.example .env
 # 用任意編輯器開啟 .env，填入你的 Key：
-# GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxx
+# ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxxxxxx
 ```
 
 **4. 下載法條並建立向量索引**
 
 ```bash
 # 下載 4 部勞工法規（約 10 秒）
-python scripts/download_laws.py
+uv run python scripts/download_laws.py
 
 # 建立 ChromaDB 向量索引（首次約 1~2 分鐘）
-python scripts/build_index.py
+uv run python scripts/build_index.py
 ```
 
 **5. 啟動系統**
 
 ```bash
-python server.py
+uv run python server.py
 ```
 
 開啟瀏覽器前往 **http://localhost:5001**
@@ -156,10 +148,10 @@ python server.py
 cp your_book.docx data/books/
 
 # 2. 處理並切割成 chunk
-python scripts/process_books.py
+uv run python scripts/process_books.py
 
 # 3. 重新建立向量索引
-python scripts/build_index.py
+uv run python scripts/build_index.py
 ```
 
 ---
@@ -169,12 +161,12 @@ python scripts/build_index.py
 ```
 hr-labor-law-rag/
 ├── server.py                  # Flask 後端（/api/query、/api/health）
-├── app.py                     # Streamlit 版本（備用）
-├── requirements.txt
+├── pyproject.toml             # 依賴與 ruff 設定（uv 管理）
 ├── .env.example               # API Key 範本
 ├── static/
 │   └── index.html             # 單頁 HTML 前端
 ├── src/
+│   ├── config.py              # 集中參數設定
 │   └── rag_engine.py          # 核心 RAG 引擎
 │                              #   Guardrail → Router → 檢索 → LLM
 ├── scripts/
@@ -226,7 +218,7 @@ hr-labor-law-rag/
 ## 執行評估
 
 ```bash
-python eval/evaluation.py
+uv run python eval/evaluation.py
 ```
 
 評估內容：
