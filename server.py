@@ -4,7 +4,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory
 
-from src.config import PORT
+from src.config import HOST, PORT
 
 load_dotenv(Path(__file__).parent / ".env")
 
@@ -75,4 +75,4 @@ def health():
 
 if __name__ == "__main__":
     print(f"\n🔗 open http://localhost:{PORT}\n")
-    app.run(debug=False, port=PORT)
+    app.run(debug=False, host=HOST, port=PORT)

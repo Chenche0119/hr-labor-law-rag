@@ -1,0 +1,12 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-5001}:${PORT:-5001}"
+    env_file:
+      - .env
+    volumes:
+      # Persist the embedded ChromaDB and source data across restarts
+      - ./chroma_db:/app/chroma_db
+      - ./data:/app/data
+    restart: unless-stopped

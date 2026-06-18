@@ -8,6 +8,9 @@ dependencies = [
     "anthropic>=0.40.0",
     "chromadb>=0.4.0",
     "sentence-transformers>=3.0.0",
+    # Declared directly so the CPU-only index override below applies
+    # (otherwise torch is only a transitive dep and the source is ignored).
+    "torch>=2.12.0",
     "python-docx>=1.1.0",
     "pdfplumber>=0.10.0",
     "python-dotenv>=1.0.0",
@@ -15,6 +18,16 @@ dependencies = [
 
 [dependency-groups]
 dev = ["ruff>=0.6.0"]
+
+# CPU-only torch on Linux (containers) to drop the ~15GB CUDA stack;
+# macOS keeps the default PyPI wheel for local development.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [tool.ruff]
 target-version = "py311"

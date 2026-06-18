@@ -61,7 +61,7 @@ def index_collection(
 
 
 def main():
-    print("[load] embedding model (first run downloads ~500MB)...")
+    print("[load] embedding model...")
     model = SentenceTransformer(EMBED_MODEL_NAME)
     chroma_client = chromadb.PersistentClient(path=str(CHROMA_DIR))
 

@@ -1,0 +1,12 @@
+.git/
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.ruff_cache/
+.claude/
+.DS_Store
+.env
+# Mounted at runtime via volumes, not baked into the image
+chroma_db/
+data/

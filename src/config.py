@@ -15,10 +15,11 @@ CLASSIFY_MAX_TOKENS = 16  # guardrail / router only emit YES-NO or A-B
 ANSWER_MAX_TOKENS = 8192  # must cover adaptive thinking + the visible answer
 
 # Embedding (local sentence-transformers, multilingual)
-EMBED_MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
+EMBED_MODEL_NAME = "BAAI/bge-m3"
 
-# Retrieval confidence threshold (cosine distance; smaller is more relevant)
-CONFIDENCE_THRESHOLD = 0.6
+# Retrieval confidence threshold (cosine distance; smaller is more relevant).
+# Calibrated for bge-m3: relevant queries score <=0.42, irrelevant ~0.58.
+CONFIDENCE_THRESHOLD = 0.5
 
 # Vector index building
 BATCH_SIZE = 128
@@ -42,4 +43,5 @@ HTTP_HEADERS = {
 }
 
 # Flask server
+HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "5001"))

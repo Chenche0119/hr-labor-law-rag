@@ -63,7 +63,7 @@
 | LLM | Claude API（Opus 4.8） | 品質最佳，需 API Key |
 | Embedding | sentence-transformers（本地） | **免費**，支援中文多語言 |
 | 向量資料庫 | ChromaDB | 本地持久化儲存 |
-| Embedding 模型 | paraphrase-multilingual-MiniLM-L12-v2 | 多語言，約 500MB |
+| Embedding 模型 | BAAI/bge-m3 | 多語言檢索 SOTA，支援 8192 tokens，約 2.3GB |
 
 ---
 
@@ -86,13 +86,41 @@
 
 ## 快速開始
 
-### 前置需求
+### 方式一：Docker 一鍵啟動（推薦）
+
+前後端與向量資料庫打包在單一容器，首次啟動會**自動下載法條並建立索引**。
+
+前置需求：[Docker](https://docs.docker.com/get-docker/) 與 Docker Compose、[Anthropic API Key](https://console.anthropic.com)。
+
+```bash
+# 1. 設定 API Key
+cp .env.example .env
+# 編輯 .env 填入 ANTHROPIC_API_KEY
+
+# 2. 建置並啟動（首次會建置 image 並自動灌入法條資料）
+docker compose up --build
+```
+
+開啟瀏覽器前往 **http://localhost:5001**。
+
+- 向量資料庫（`chroma_db/`）與資料（`data/`）以 volume 持久化，重啟不需重建索引。
+- 嵌入模型（BAAI/bge-m3）已預先打包進 image，首次啟動無需等待下載。
+- image 採 **CPU-only PyTorch**（移除整套 CUDA），體積約 9GB（原 CUDA 版約 18GB）；如需 GPU 推論需自行調整 torch 來源。
+- 啟動時以 `HF_HUB_OFFLINE=1` 從打包好的快取載入模型，避免網路不穩時卡住。
+- 加入書籍庫：將檔案放入 `data/books/` 後，於容器內執行
+  `docker compose exec app uv run python scripts/process_books.py && docker compose exec app uv run python scripts/build_index.py`。
+
+---
+
+### 方式二：本機 uv 安裝
+
+#### 前置需求
 
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/)
 - [Anthropic API Key](https://console.anthropic.com)
 
-### 安裝步驟
+#### 安裝步驟
 
 **1. 取得專案**
 
@@ -107,7 +135,7 @@ cd hr-labor-law-rag
 uv sync
 ```
 
-> 首次執行時 sentence-transformers 會自動下載模型（約 500MB），需要網路連線。
+> 首次執行時 sentence-transformers 會自動下載 bge-m3 模型（約 2.3GB），需要網路連線。
 
 **3. 設定 API Key**
 
@@ -163,6 +191,9 @@ hr-labor-law-rag/
 ├── server.py                  # Flask 後端（/api/query、/api/health）
 ├── pyproject.toml             # 依賴與 ruff 設定（uv 管理）
 ├── .env.example               # API Key 範本
+├── Dockerfile                 # 單容器映像（含預載嵌入模型）
+├── docker-compose.yml         # 一鍵啟動編排（含 volume 持久化）
+├── docker-entrypoint.sh       # 首次啟動自動下載法條並建索引
 ├── static/
 │   └── index.html             # 單頁 HTML 前端
 ├── src/
@@ -172,6 +203,7 @@ hr-labor-law-rag/
 ├── scripts/
 │   ├── download_laws.py       # 爬取全國法規資料庫
 │   ├── process_books.py       # 處理書籍 Word/PDF
+│   ├── preload_model.py       # 建置時預載嵌入模型
 │   └── build_index.py         # 建立 ChromaDB 向量索引
 ├── eval/
 │   └── evaluation.py          # 評估腳本
