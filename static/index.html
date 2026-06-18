@@ -420,7 +420,7 @@
 
     <h2>資料來源</h2>
     <div class="source-item">
-      🔵 <strong>法條庫</strong><br>
+      📜 <strong>法條庫</strong><br>
       勞動基準法、勞工退休金條例、性別平等工作法、勞工保險條例
     </div>
     <div class="source-item">
@@ -578,7 +578,7 @@
       html += `<div class="sources-list" id="${id}">`;
       for (const c of data.chunks) {
         const badgeClass = c.collection === "laws" ? "badge-laws" : "badge-books";
-        const badgeLabel = c.collection === "laws" ? "🔵 法條" : "📚 書籍";
+        const badgeLabel = c.collection === "laws" ? "📜 法條" : "📚 書籍";
         html += `<div class="source-chunk">
           <div class="chunk-header">
             <span class="chunk-badge ${badgeClass}">${badgeLabel}</span>
