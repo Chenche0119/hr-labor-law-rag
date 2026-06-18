@@ -4,6 +4,7 @@
 - LLM: Anthropic Claude
 """
 import os
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -159,34 +160,89 @@ class RAGEngine:
     # ------------------------------------------------------------------
     # Main query entry point
     # ------------------------------------------------------------------
-    def query(self, question: str) -> RAGResult:
+    OUT_OF_SCOPE_MSG = (
+        "抱歉，本系統僅提供台灣勞工法律相關問題的查詢服務，"
+        "您的問題超出服務範疇。"
+    )
+    NO_LAW_MSG = (
+        "根據現行法規資料庫，目前無明確的法條規定對應您的問題。"
+        "建議諮詢專業法律顧問或查閱勞動部最新公告。"
+    )
+
+    def query_stream(self, question: str) -> Iterator[dict]:
+        """Run the pipeline, yielding per-step events; last is 'result'."""
+        yield {"step": "guardrail", "status": "running"}
         if not check_scope(self._llm, question):
-            return RAGResult(
-                answer=(
-                    "抱歉，本系統僅提供台灣勞工法律相關問題的查詢服務，"
-                    "您的問題超出服務範疇。"
-                ),
-                query_type="out_of_scope",
-                guardrail_passed=False,
-            )
+            yield {"step": "guardrail", "status": "done", "passed": False}
+            yield {
+                "step": "result",
+                "answer": self.OUT_OF_SCOPE_MSG,
+                "query_type": "out_of_scope",
+                "guardrail_passed": False,
+                "chunks": [],
+            }
+            return
+        yield {"step": "guardrail", "status": "done", "passed": True}
 
+        yield {"step": "router", "status": "running"}
         q_type = route(self._llm, question)
-        embedding = self._embed(question)
+        yield {"step": "router", "status": "done", "query_type": q_type}
 
+        yield {"step": "retrieve", "status": "running"}
+        embedding = self._embed(question)
         if q_type == "A":
             chunks = self.retrieve_type_a(embedding)
+            yield {
+                "step": "retrieve",
+                "status": "done",
+                "count": len(chunks),
+                "scope": "laws",
+            }
+            yield {"step": "confidence", "status": "running"}
             if not chunks or chunks[0].distance > CONFIDENCE_THRESHOLD:
-                return RAGResult(
-                    answer=(
-                        "根據現行法規資料庫，目前無明確的法條規定對應您的問題。"
-                        "建議諮詢專業法律顧問或查閱勞動部最新公告。"
-                    ),
-                    query_type="no_law",
-                    chunks=chunks,
-                )
+                yield {
+                    "step": "confidence",
+                    "status": "done",
+                    "result": "no_law",
+                }
+                yield {
+                    "step": "result",
+                    "answer": self.NO_LAW_MSG,
+                    "query_type": "no_law",
+                    "guardrail_passed": True,
+                    "chunks": chunks,
+                }
+                return
             chunks = [c for c in chunks if c.distance <= CONFIDENCE_THRESHOLD]
+            yield {"step": "confidence", "status": "done", "result": "pass"}
         else:
             chunks = self.retrieve_type_b(embedding)
+            yield {
+                "step": "retrieve",
+                "status": "done",
+                "count": len(chunks),
+                "scope": "books+laws",
+            }
+            yield {"step": "confidence", "status": "skipped"}
 
+        yield {"step": "generate", "status": "running"}
         answer = self.generate_answer(question, chunks)
-        return RAGResult(answer=answer, query_type=q_type, chunks=chunks)
+        yield {
+            "step": "result",
+            "answer": answer,
+            "query_type": q_type,
+            "guardrail_passed": True,
+            "chunks": chunks,
+        }
+
+    def query(self, question: str) -> RAGResult:
+        result = RAGResult(answer="", query_type="out_of_scope")
+        for ev in self.query_stream(question):
+            if ev["step"] == "result":
+                result = RAGResult(
+                    answer=ev["answer"],
+                    query_type=ev["query_type"],
+                    chunks=ev.get("chunks", []),
+                    guardrail_passed=ev.get("guardrail_passed", True),
+                )
+        return result

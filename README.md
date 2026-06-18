@@ -245,26 +245,25 @@ hr-labor-law-rag/
 
 ### `POST /api/query`
 
-```json
+以 **SSE（`text/event-stream`）逐步串流**管線進度，前端據此即時更新「查詢流程」側欄。
+
+```
 // Request
 { "question": "特休假幾天？" }
 
-// Response
-{
-  "answer": "結論：特休假天數根據...",
-  "query_type": "A",
-  "query_type_label": "直接查詢型（法條庫）",
-  "guardrail_passed": true,
-  "chunks": [
-    {
-      "source": "勞動基準法第38條",
-      "content": "第38條 勞工在同一雇主...",
-      "distance": 0.3947,
-      "collection": "laws"
-    }
-  ]
-}
+// Response：text/event-stream，每行 data: {event}
+data: {"step":"guardrail","status":"running"}
+data: {"step":"guardrail","status":"done","passed":true}
+data: {"step":"router","status":"done","query_type":"A"}
+data: {"step":"retrieve","status":"done","count":5,"scope":"laws"}
+data: {"step":"confidence","status":"done","result":"pass"}
+data: {"step":"generate","status":"running"}
+data: {"step":"result","answer":"...","query_type":"A","query_type_label":"直接查詢型（法條庫）","guardrail_passed":true,"chunks":[{"source":"勞動基準法第38條","content":"...","distance":0.3947,"collection":"laws"}]}
 ```
+
+事件類型：`guardrail` / `router` / `retrieve` / `confidence` / `generate`（含
+`status: running|done|skipped`），最後一筆為 `result`（完整答案與來源），錯誤為
+`{"step":"error","error":...}`。
 
 ### `GET /api/health`
 

@@ -101,6 +101,28 @@
     }
     .sidebar .step-text strong { display: block; font-size: 13px; }
     .sidebar .step-text span { font-size: 12px; color: var(--text-muted); }
+    /* ── Live step states ── */
+    .flow-step { transition: opacity 0.2s; }
+    .flow-step .step-result { display: none; font-weight: 600; margin-top: 3px; }
+    .flow-step.running .step-result,
+    .flow-step.done .step-result,
+    .flow-step.blocked .step-result,
+    .flow-step.nolaw .step-result,
+    .flow-step.skipped .step-result { display: block; }
+    .flow-step.running .step-num { animation: stepPulse 1s infinite; }
+    .flow-step.done .step-num { background: #16a34a; }
+    .flow-step.blocked .step-num { background: #ef4444; }
+    .flow-step.nolaw .step-num { background: #d97706; }
+    .flow-step.skipped { opacity: 0.4; }
+    .flow-step.done .step-result { color: #16a34a; }
+    .flow-step.blocked .step-result { color: #ef4444; }
+    .flow-step.nolaw .step-result { color: #d97706; }
+    .flow-step.running .step-result,
+    .flow-step.skipped .step-result { color: var(--text-muted); }
+    @keyframes stepPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.5); }
+      50% { box-shadow: 0 0 0 5px rgba(37,99,235,0); }
+    }
     .sidebar hr { border: none; border-top: 1px solid var(--border); }
     .sidebar .source-item { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
     .clear-btn {
@@ -338,39 +360,44 @@
   <!-- Sidebar -->
   <aside class="sidebar">
     <h2>查詢流程</h2>
-    <div class="flow-step">
+    <div class="flow-step" id="step-guardrail">
       <div class="step-num">1</div>
       <div class="step-text">
         <strong>Guardrail</strong>
         <span>判斷是否屬台灣勞工法範疇，超出範疇直接攔截</span>
+        <span class="step-result"></span>
       </div>
     </div>
-    <div class="flow-step">
+    <div class="flow-step" id="step-router">
       <div class="step-num">2</div>
       <div class="step-text">
         <strong>Router</strong>
         <span>A型（直接查詢）或 B型（爭議解釋）</span>
+        <span class="step-result"></span>
       </div>
     </div>
-    <div class="flow-step">
+    <div class="flow-step" id="step-retrieve">
       <div class="step-num">3</div>
       <div class="step-text">
         <strong>檢索</strong>
         <span>A型查法條庫；B型查書籍庫＋法條庫</span>
+        <span class="step-result"></span>
       </div>
     </div>
-    <div class="flow-step">
+    <div class="flow-step" id="step-confidence">
       <div class="step-num">4</div>
       <div class="step-text">
         <strong>信心門檻</strong>
         <span>A型若無高度相關法條，回覆「無明確規定」</span>
+        <span class="step-result"></span>
       </div>
     </div>
-    <div class="flow-step">
+    <div class="flow-step" id="step-generate">
       <div class="step-num">5</div>
       <div class="step-text">
         <strong>LLM 生成</strong>
         <span>Claude Opus 4.8 整合 context，輸出白話回答＋來源</span>
+        <span class="step-result"></span>
       </div>
     </div>
 
@@ -572,6 +599,54 @@
       .replace(/"/g, "&quot;");
   }
 
+  const STEP_IDS = ["step-guardrail","step-router","step-retrieve","step-confidence","step-generate"];
+
+  function resetSteps() {
+    for (const id of STEP_IDS) setStep(id, "", "");
+  }
+
+  function setStep(id, state, text) {
+    const el = document.getElementById(id);
+    el.classList.remove("running","done","blocked","nolaw","skipped");
+    if (state) el.classList.add(state);
+    el.querySelector(".step-result").textContent = text || "";
+  }
+
+  function skipStepsFrom(startIdx) {
+    for (let i = startIdx; i < STEP_IDS.length; i++) setStep(STEP_IDS[i], "skipped", "略過");
+  }
+
+  function handleStepEvent(ev) {
+    switch (ev.step) {
+      case "guardrail":
+        if (ev.status === "running") setStep("step-guardrail","running","判斷中…");
+        else if (ev.passed) setStep("step-guardrail","done","✓ 通過");
+        else { setStep("step-guardrail","blocked","✗ 攔截（超出範疇）"); skipStepsFrom(1); }
+        break;
+      case "router":
+        if (ev.status === "running") setStep("step-router","running","分流中…");
+        else setStep("step-router","done", ev.query_type === "A" ? "A 型（直接查詢）" : "B 型（爭議解釋）");
+        break;
+      case "retrieve":
+        if (ev.status === "running") setStep("step-retrieve","running","檢索中…");
+        else setStep("step-retrieve","done", ev.scope === "laws"
+          ? `查到 ${ev.count} 筆（法條庫）`
+          : `查到 ${ev.count} 筆（書籍庫＋法條庫）`);
+        break;
+      case "confidence":
+        if (ev.status === "running") setStep("step-confidence","running","評估中…");
+        else if (ev.status === "skipped") setStep("step-confidence","skipped","略過（B 型不適用）");
+        else if (ev.result === "no_law") {
+          setStep("step-confidence","nolaw","無明確規定（停止）");
+          setStep("step-generate","skipped","略過");
+        } else setStep("step-confidence","done","✓ 通過");
+        break;
+      case "generate":
+        if (ev.status === "running") setStep("step-generate","running","生成中…");
+        break;
+    }
+  }
+
   async function sendMessage() {
     const q = inputEl.value.trim();
     if (!q || sendBtn.disabled) return;
@@ -582,24 +657,47 @@
 
     appendMessage("user", q);
     const typingMsg = appendTyping();
+    resetSteps();
 
+    let finished = false;
     try {
       const resp = await fetch("/api/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: q }),
       });
-      const data = await resp.json();
-      typingMsg.remove();
-
-      if (data.error) {
-        appendMessage("bot", `<span style="color:#ef4444">⚠️ ${escHtml(data.error)}</span>`);
-      } else {
-        appendMessage("bot", buildBotBubble(data));
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const parts = buf.split("\n\n");
+        buf = parts.pop();
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith("data:")) continue;
+          const ev = JSON.parse(line.slice(5).trim());
+          if (ev.step === "result") {
+            if (ev.query_type === "A" || ev.query_type === "B")
+              setStep("step-generate","done","✓ 完成");
+            typingMsg.remove();
+            appendMessage("bot", buildBotBubble(ev));
+            finished = true;
+          } else if (ev.step === "error") {
+            typingMsg.remove();
+            appendMessage("bot", `<span style="color:#ef4444">⚠️ ${escHtml(ev.error)}</span>`);
+            finished = true;
+          } else {
+            handleStepEvent(ev);
+          }
+        }
       }
+      if (!finished) typingMsg.remove();
     } catch (e) {
       typingMsg.remove();
-      appendMessage("bot", `<span style="color:#ef4444">⚠️ 無法連線到伺服器，請確認 server.py 已啟動。</span>`);
+      appendMessage("bot", `<span style="color:#ef4444">⚠️ 無法連線到伺服器，請確認服務已啟動。</span>`);
     }
 
     sendBtn.disabled = false;
