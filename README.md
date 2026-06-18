@@ -34,7 +34,7 @@
 │                      │  │  加班費如何計算？                            │  │
 │  資料來源            │  ├─────────────────────────────────────────────┤  │
 │  ────────────        │  │  承攬跟僱傭關係怎麼區分？                    │  │
-│  🔵  法條庫          │  ├─────────────────────────────────────────────┤  │
+│  📜  法條庫          │  ├─────────────────────────────────────────────┤  │
 │  📚  書籍庫          │  │  雇主可以單方面調降薪資嗎？                  │  │
 │                      │  └─────────────────────────────────────────────┘  │
 │                      ├───────────────────────────────────────────────────┤
@@ -47,14 +47,52 @@
 ## 功能特色
 
 - **自然語言提問**：直接用中文問，不需要輸入關鍵字
-- **雙層保護機制**：Guardrail 過濾範疇外問題，避免 API 浪費
-- **智慧路由**：自動判斷問題類型，選擇最適合的檢索策略
-- **來源可追溯**：每個回答都附上引用的法條條號或書籍章節
-- **本地免費 Embedding**：sentence-transformers 本地執行，無需付費 API（LLM 採 Claude API，需付費）
+- **範疇守門（Guardrail）**：過濾非勞工法問題，避免亂答與 API 浪費
+- **智慧路由（Router）**：自動判斷 A／B 型，選擇最適合的檢索策略
+- **信心門檻**：A 型若無高度相關法條，回覆「無明確規定」而非硬掰（避免幻覺）
+- **即時流程進度**：SSE 串流，側欄逐步顯示每個關卡的真實狀態與耗時
+- **來源可追溯**：每個回答附上引用的法條條號（📜）或書籍章節（📚）
+- **本地免費 Embedding**：bge-m3 本地執行，無需付費嵌入 API（生成採 Claude API）
+- **體驗細節**：回答以 Markdown 渲染；對話以 localStorage 保存，重新整理不消失
 
 ---
 
 ## RAG 架構說明
+
+### 查詢流程
+
+每次查詢依序經過 Guardrail → Router → 檢索 →（A 型）信心門檻 → LLM 生成，
+並以 SSE 即時串流每一步進度到前端側欄。
+
+```mermaid
+flowchart TD
+    Q["使用者問題"] --> G{"Guardrail（check_scope · LLM）<br/>是否屬台灣勞工法範疇？"}
+    G -->|否| OOS["超出服務範疇<br/>(out_of_scope)"]
+    G -->|是| R{"Router（route · LLM）<br/>A 型 or B 型？"}
+    R -->|"A 直接查詢"| EA["Embedding (bge-m3) ＋ 檢索<br/>法條庫 Top-5"]
+    R -->|"B 爭議解釋"| EB["Embedding (bge-m3) ＋ 檢索<br/>書籍庫 Top-5 ＋ 法條庫 Top-2"]
+    EA --> C{"信心門檻<br/>cosine 距離 ≤ 0.5？"}
+    C -->|否| NL["無明確規定<br/>(no_law)"]
+    C -->|是| GEN["LLM 生成<br/>Claude Opus 4.8"]
+    EB --> GEN
+    GEN --> ANS["白話回答 ＋ 來源（📜 法條／📚 書籍）"]
+```
+
+### 系統架構
+
+```mermaid
+flowchart LR
+    U["瀏覽器・單頁前端<br/>即時進度 · Markdown · localStorage"]
+    subgraph C["Docker 容器（Flask + Gunicorn gthread）"]
+        S["server.py<br/>/api/query (SSE)"] --> E["RAG Engine"]
+        E --> GR["guardrail.py"]
+        E --> RT["router.py"]
+        E --> EMB["bge-m3<br/>本地嵌入"]
+        E --> DB[("ChromaDB<br/>法條庫 ＋ 書籍庫")]
+    end
+    U <-->|"HTTP / SSE"| S
+    E -->|"Anthropic API"| LLM["Claude Opus 4.8"]
+```
 
 ### 問題類型說明
 
@@ -69,12 +107,13 @@
 
 | 模組 | 技術 | 說明 |
 |------|------|------|
-| 前端 | 原生 HTML / CSS / JavaScript | 單頁應用，無需框架 |
+| 前端 | 原生 HTML / CSS / JavaScript | 單頁應用；SSE 即時進度、marked.js 渲染 Markdown、localStorage 保存對話 |
 | 後端 | Flask 3.0 + Gunicorn | 輕量 Web 框架；Docker 以 Gunicorn（gthread）提供生產級服務 |
-| LLM | Claude API（Opus 4.8） | 品質最佳，需 API Key |
-| Embedding | sentence-transformers（本地） | **免費**，支援中文多語言 |
-| 向量資料庫 | ChromaDB | 本地持久化儲存 |
-| Embedding 模型 | BAAI/bge-m3 | 多語言檢索 SOTA，支援 8192 tokens，約 2.3GB |
+| API 串流 | Server-Sent Events | `/api/query` 逐步串流管線進度與最終結果 |
+| LLM | Claude API（Opus 4.8） | Guardrail／Router／生成皆用；需 API Key |
+| Embedding | sentence-transformers + BAAI/bge-m3 | **本地免費**，多語言檢索 SOTA，1024 維、支援 8192 tokens（約 2.3GB） |
+| 向量資料庫 | ChromaDB | 本地持久化（cosine）；法條庫 + 書籍庫兩個 collection |
+| 容器化 | Docker + Compose | 單容器一鍵啟動；CPU-only PyTorch、預載模型、首次自動建索引 |
 
 ---
 
@@ -215,28 +254,32 @@ uv run python scripts/build_index.py
 
 ```
 hr-labor-law-rag/
-├── server.py                  # Flask 後端（/api/query、/api/health）
+├── server.py                  # Flask 後端（/api/query SSE、/api/health）
+├── gunicorn.conf.py           # Gunicorn 設定（gthread，讀 config）
 ├── pyproject.toml             # 依賴與 ruff 設定（uv 管理）
 ├── .env.example               # API Key 範本
-├── Dockerfile                 # 單容器映像（含預載嵌入模型）
+├── Dockerfile                 # 單容器映像（CPU torch、預載並快取嵌入模型）
 ├── docker-compose.yml         # 一鍵啟動編排（含 volume 持久化）
-├── docker-entrypoint.sh       # 首次啟動自動下載法條並建索引
+├── docker-entrypoint.sh       # 首次啟動自動下載法條並建索引（離線載模型）
+├── .dockerignore
 ├── static/
-│   └── index.html             # 單頁 HTML 前端
+│   ├── index.html             # 單頁前端（即時進度、Markdown、對話保存）
+│   └── marked.min.js          # Markdown 渲染（本地打包）
 ├── src/
 │   ├── config.py              # 集中參數設定
-│   └── rag_engine.py          # 核心 RAG 引擎
-│                              #   Guardrail → Router → 檢索 → LLM
+│   ├── guardrail.py           # 第 1 層：範疇守門（check_scope）
+│   ├── router.py              # 第 2 層：問題路由（route，A／B）
+│   └── rag_engine.py          # 核心引擎：檢索 → 信心門檻 → LLM 生成
 ├── scripts/
 │   ├── download_laws.py       # 爬取全國法規資料庫
-│   ├── process_books.py       # 處理書籍 Word/PDF
+│   ├── process_books.py       # 處理書籍 Word/PDF → chunk
 │   ├── preload_model.py       # 建置時預載嵌入模型
 │   └── build_index.py         # 建立 ChromaDB 向量索引
 ├── eval/
-│   └── evaluation.py          # 評估腳本
+│   └── evaluation.py          # 評估腳本（Guardrail/Router + 邊界測試）
 └── data/
     ├── laws/                  # 法條 JSON（自動產生）
-    └── books/                 # 書籍原始檔（手動放入）
+    └── books/                 # 書籍原始檔（手動放入，不納版控）
 ```
 
 ---
