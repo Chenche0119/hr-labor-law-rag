@@ -169,16 +169,32 @@ uv run python server.py
 
 ## 書籍資料建置（選用）
 
-若有勞工法教授著作（.docx 或 .pdf），可加入書籍庫以提升 B 型問題的回答品質：
+加入勞工法教授著作（.docx / .pdf）可提升 B 型（爭議解釋）問題的回答品質。
+檔名會作為來源標籤（顯示為《檔名》），請取有意義的書名。docx 能偵測章節標題、
+metadata 較完整，有 docx 版優先用 docx。
+
+**Docker（推薦）**
 
 ```bash
-# 1. 將書籍檔案放入 data/books/ 目錄
-cp your_book.docx data/books/
+# 1. 將書籍檔案放入 data/books/（會自動掛載進容器）
+mkdir -p data/books
+cp 你的書籍.pdf data/books/
 
-# 2. 處理並切割成 chunk
+# 2. 切割成 chunk（不需模型）
+docker compose exec app uv run python scripts/process_books.py
+
+# 3. 建立書籍向量索引（用 bge-m3；已索引的法條會自動略過）
+docker compose exec app uv run python scripts/build_index.py
+
+# 4. 重啟讓服務載入新的書籍庫
+docker compose restart app
+```
+
+**本機 uv**
+
+```bash
+mkdir -p data/books && cp 你的書籍.docx data/books/
 uv run python scripts/process_books.py
-
-# 3. 重新建立向量索引
 uv run python scripts/build_index.py
 ```
 

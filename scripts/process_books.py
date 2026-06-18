@@ -10,6 +10,7 @@ from docx import Document
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.config import BOOKS_DIR, CHUNK_SIZE, OVERLAP
 
+BOOKS_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_FILE = BOOKS_DIR / "processed_books.json"
 
 

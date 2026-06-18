@@ -5,6 +5,12 @@ services:
       - "${PORT:-5001}:${PORT:-5001}"
     env_file:
       - .env
+    environment:
+      # Load the baked embedding model from local cache only. Set here (not
+      # just in the entrypoint) so `docker compose exec` sessions inherit it
+      # too — e.g. when rebuilding the index after adding books.
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
     volumes:
       # Persist the embedded ChromaDB and source data across restarts
       - ./chroma_db:/app/chroma_db
