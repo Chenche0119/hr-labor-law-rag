@@ -69,8 +69,8 @@ flowchart TD
     Q["使用者問題"] --> G{"Guardrail（check_scope · LLM）<br/>是否屬台灣勞工法範疇？"}
     G -->|否| OOS["超出服務範疇<br/>(out_of_scope)"]
     G -->|是| R{"Router（route · LLM）<br/>A 型 or B 型？"}
-    R -->|"A 直接查詢"| EA["Embedding (bge-m3) ＋ 檢索<br/>法條庫 Top-5"]
-    R -->|"B 爭議解釋"| EB["Embedding (bge-m3) ＋ 檢索<br/>書籍庫 Top-5 ＋ 法條庫 Top-2"]
+    R -->|"A 直接查詢"| EA["Embedding (bge-m3) ＋ 檢索<br/>法條庫（280 條）→ Top-5"]
+    R -->|"B 爭議解釋"| EB["Embedding (bge-m3) ＋ 檢索<br/>書籍庫（5 本）Top-5 ＋ 法條庫 Top-2"]
     EA --> C{"信心門檻<br/>cosine 距離 ≤ 0.5？"}
     C -->|否| NL["無明確規定<br/>(no_law)"]
     C -->|是| GEN["LLM 生成<br/>Claude Opus 4.8"]
@@ -88,7 +88,7 @@ flowchart LR
         E --> GR["guardrail.py"]
         E --> RT["router.py"]
         E --> EMB["bge-m3<br/>本地嵌入"]
-        E --> DB[("ChromaDB<br/>法條庫 ＋ 書籍庫")]
+        E --> DB[("ChromaDB<br/>法條庫 280 條 ＋ 書籍庫 5 本")]
     end
     U <-->|"HTTP / SSE"| S
     E -->|"Anthropic API"| LLM["Claude Opus 4.8"]
