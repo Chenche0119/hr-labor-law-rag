@@ -101,7 +101,7 @@ class RAGEngine:
     # Retrieval
     # ------------------------------------------------------------------
     def _query_col(
-        self, col, embedding: list[float], n: int
+        self, col, embedding: list[float], n: int, collection: str
     ) -> list[RetrievedChunk]:
         count = col.count()
         if count == 0:
@@ -114,23 +114,26 @@ class RAGEngine:
             meta = results["metadatas"][0][i]
             dist = results["distances"][0][i]
             source = meta.get("source", meta.get("law_name", "未知來源"))
-            col_name = "laws" if col == self.laws_col else "books"
             chunks.append(
                 RetrievedChunk(
                     content=doc,
                     source=source,
                     distance=dist,
-                    collection=col_name,
+                    collection=collection,
                 )
             )
         return chunks
 
     def retrieve_type_a(self, embedding: list[float]) -> list[RetrievedChunk]:
-        return self._query_col(self.laws_col, embedding, n=5)
+        return self._query_col(self.laws_col, embedding, n=5, collection="laws")
 
     def retrieve_type_b(self, embedding: list[float]) -> list[RetrievedChunk]:
-        books = self._query_col(self.books_col, embedding, n=5)
-        laws = self._query_col(self.laws_col, embedding, n=2)
+        books = self._query_col(
+            self.books_col, embedding, n=5, collection="books"
+        )
+        laws = self._query_col(
+            self.laws_col, embedding, n=2, collection="laws"
+        )
         return books + laws
 
     # ------------------------------------------------------------------
