@@ -178,7 +178,22 @@
       color: var(--text);
       border-bottom-left-radius: 4px;
     }
-    .bubble .answer-text { white-space: pre-wrap; }
+    /* ── Rendered markdown answer ── */
+    .bubble .answer-md { font-size: 14px; line-height: 1.7; }
+    .answer-md > :first-child { margin-top: 0; }
+    .answer-md > :last-child { margin-bottom: 0; }
+    .answer-md h1 { font-size: 17px; font-weight: 700; margin: 14px 0 8px; }
+    .answer-md h2 { font-size: 15px; font-weight: 700; margin: 14px 0 6px; padding-bottom: 3px; border-bottom: 1px solid var(--border); }
+    .answer-md h3 { font-size: 14px; font-weight: 700; margin: 12px 0 4px; }
+    .answer-md p { margin: 8px 0; }
+    .answer-md ul, .answer-md ol { margin: 6px 0; padding-left: 20px; }
+    .answer-md li { margin: 3px 0; }
+    .answer-md strong { font-weight: 700; }
+    .answer-md code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+    .answer-md table { border-collapse: collapse; margin: 8px 0; font-size: 13px; display: block; overflow-x: auto; }
+    .answer-md th, .answer-md td { border: 1px solid var(--border); padding: 5px 10px; text-align: left; white-space: nowrap; }
+    .answer-md th { background: var(--bg); font-weight: 600; }
+    .answer-md blockquote { border-left: 3px solid var(--border); margin: 8px 0; padding-left: 10px; color: var(--text-muted); }
 
     /* ── Tags ── */
     .tag {
@@ -468,7 +483,9 @@
   </div>
 </div>
 
+<script src="/static/marked.min.js"></script>
 <script>
+  marked.setOptions({ breaks: true, gfm: true });
   const messagesEl = document.getElementById("messages");
   const inputEl = document.getElementById("input");
   const sendBtn = document.getElementById("sendBtn");
@@ -549,7 +566,7 @@
       A: "tag-A", B: "tag-B", out_of_scope: "tag-out", no_law: "tag-no"
     }[data.query_type] || "tag-A";
 
-    let html = `<div class="answer-text">${escHtml(data.answer)}</div>`;
+    let html = `<div class="answer-md">${marked.parse(data.answer || "")}</div>`;
     html += `<span class="tag ${tagClass}">${escHtml(data.query_type_label)}</span>`;
 
     if (data.chunks && data.chunks.length > 0) {
