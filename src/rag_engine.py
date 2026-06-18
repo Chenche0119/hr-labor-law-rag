@@ -16,11 +16,12 @@ from sentence_transformers import SentenceTransformer
 from src.config import (
     ANSWER_MAX_TOKENS,
     CHROMA_DIR,
-    CLASSIFY_MAX_TOKENS,
     CONFIDENCE_THRESHOLD,
     EMBED_MODEL_NAME,
     LLM_MODEL,
 )
+from src.guardrail import check_scope
+from src.router import route
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
@@ -96,57 +97,6 @@ class RAGEngine:
         return "".join(b.text for b in resp.content if b.type == "text")
 
     # ------------------------------------------------------------------
-    # Layer 1: Guardrail
-    # ------------------------------------------------------------------
-    def guardrail(self, question: str) -> bool:
-        system = (
-            "你是台灣勞工法範疇判斷器。判斷問題是否屬於「台灣勞動／勞工法律」範疇。\n"
-            "只要與勞工的權利義務、勞動關係相關即為 YES，"
-            "即使資料庫未必有對應法條。\n"
-            "\n"
-            "屬於範疇（YES）包含但不限於：\n"
-            "- 勞動契約、從屬性與勞工身分認定（含醫護、飛航機師、外送平台、"
-            "保險業務員等特殊工作者是否為勞工）\n"
-            "- 工資、加班費；工時、休息、例假、輪班\n"
-            "- 職業災害與過勞、雇主補償／賠償責任\n"
-            "- 解僱、資遣、預告、最後手段性\n"
-            "- 離職後競業禁止、最低服務年限、調職\n"
-            "- 退休、勞工退休金；勞工保險、就業保險\n"
-            "- 性別平等、職場性騷擾防治、育嬰留停、產假\n"
-            "- 工會、團體協約、爭議行為（罷工）、大量解僱、職場霸凌申訴\n"
-            "\n"
-            "不屬於範疇（NO）：純稅務、公司治理（董事／委任經理人報酬）、"
-            "智慧財產（商標／專利）、租賃、與勞動權義無關的純醫療或技術問題、一般常識。\n"
-            "\n"
-            "範例：\n"
-            "Q：勞工因長期加班罹患心血管疾病，雇主要負職災補償責任嗎？ A：YES\n"
-            "Q：保險業務員與公司是僱傭還是承攬關係？ A：YES\n"
-            "Q：工會發起罷工需要經過什麼程序？ A：YES\n"
-            "Q：公司今年要繳多少營利事業所得稅？ A：NO\n"
-            "Q：公司董事的報酬由誰決定？ A：NO\n"
-            "Q：辦公室租約到期房東可以漲租嗎？ A：NO\n"
-            "\n"
-            "只回答 YES 或 NO，不要其他文字。"
-        )
-        answer = self._llm(system, question, max_tokens=CLASSIFY_MAX_TOKENS)
-        return answer.strip().upper().startswith("Y")
-
-    # ------------------------------------------------------------------
-    # Layer 2: Router
-    # ------------------------------------------------------------------
-    def router(self, question: str) -> Literal["A", "B"]:
-        system = (
-            "你是一個問題類型分類器。將問題分為：\n"
-            "A = 直接查詢型：問特定法條、數字、明確規定"
-            "（例：特休幾天、加班費怎麼算）\n"
-            "B = 爭議解釋型：問模糊地帶、實務見解、身份界定"
-            "（例：承攬與僱傭如何區分）\n"
-            "只回答 A 或 B，不要其他文字。"
-        )
-        answer = self._llm(system, question, max_tokens=CLASSIFY_MAX_TOKENS)
-        return "A" if answer.strip().upper().startswith("A") else "B"
-
-    # ------------------------------------------------------------------
     # Retrieval
     # ------------------------------------------------------------------
     def _query_col(
@@ -210,7 +160,7 @@ class RAGEngine:
     # Main query entry point
     # ------------------------------------------------------------------
     def query(self, question: str) -> RAGResult:
-        if not self.guardrail(question):
+        if not check_scope(self._llm, question):
             return RAGResult(
                 answer=(
                     "抱歉，本系統僅提供台灣勞工法律相關問題的查詢服務，"
@@ -220,7 +170,7 @@ class RAGEngine:
                 guardrail_passed=False,
             )
 
-        q_type = self.router(question)
+        q_type = route(self._llm, question)
         embedding = self._embed(question)
 
         if q_type == "A":

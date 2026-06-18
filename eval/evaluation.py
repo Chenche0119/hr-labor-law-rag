@@ -7,7 +7,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from src.guardrail import check_scope
 from src.rag_engine import RAGEngine
+from src.router import route
 
 engine = RAGEngine()
 
@@ -107,7 +109,7 @@ def run_guardrail_router_eval():
     # Guardrail 攔截準確率
     print("\n[Guardrail 攔截測試]")
     for q in TEST_CASES["out_of_scope"]:
-        passed = engine.guardrail(q)
+        passed = check_scope(engine._llm, q)
         correct = not passed
         results["guardrail_intercept"]["correct"] += int(correct)
         mark = "✓" if correct else "✗"
@@ -119,7 +121,7 @@ def run_guardrail_router_eval():
         TEST_CASES["type_a"] + TEST_CASES["type_b"] + TEST_CASES["no_law"]
     )
     for q in in_scope:
-        passed = engine.guardrail(q)
+        passed = check_scope(engine._llm, q)
         correct = passed
         results["guardrail_pass"]["correct"] += int(correct)
         mark = "✓" if correct else "✗"
@@ -128,7 +130,7 @@ def run_guardrail_router_eval():
     # Router 分類準確率
     print("\n[Router A 型測試]")
     for q in TEST_CASES["type_a"]:
-        q_type = engine.router(q)
+        q_type = route(engine._llm, q)
         correct = q_type == "A"
         results["router_a"]["correct"] += int(correct)
         mark = "✓" if correct else "✗"
@@ -136,7 +138,7 @@ def run_guardrail_router_eval():
 
     print("\n[Router B 型測試]")
     for q in TEST_CASES["type_b"]:
-        q_type = engine.router(q)
+        q_type = route(engine._llm, q)
         correct = q_type == "B"
         results["router_b"]["correct"] += int(correct)
         mark = "✓" if correct else "✗"
@@ -178,7 +180,7 @@ def run_boundary_eval():
 
     print("\n[邊界 - 應放行]")
     for q in TEST_CASES["boundary_in_scope"]:
-        passed = engine.guardrail(q)
+        passed = check_scope(engine._llm, q)
         results["boundary_in_scope"]["correct"] += int(passed)
         if not passed:
             results["boundary_in_scope"]["false_negative"].append(q)
@@ -186,7 +188,7 @@ def run_boundary_eval():
 
     print("\n[邊界 - 應攔截]")
     for q in TEST_CASES["boundary_out_scope"]:
-        passed = engine.guardrail(q)
+        passed = check_scope(engine._llm, q)
         results["boundary_out_scope"]["correct"] += int(not passed)
         if passed:
             results["boundary_out_scope"]["false_positive"].append(q)

@@ -16,12 +16,16 @@ COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project
 
-# Bake the embedding model into the image (config drives the model name).
-# Only the files preload needs are copied first, so editing other scripts
-# later does not invalidate this expensive (model-download) layer.
-COPY src ./src
+# Bake the embedding model into the image. Only config.py (the model name)
+# is copied here, so editing application code never invalidates this layer.
+# The HF cache mount persists the download across builds, so even if the
+# layer is invalidated the model is fetched from the network at most once.
+COPY src/config.py ./src/config.py
 COPY scripts/preload_model.py ./scripts/preload_model.py
-RUN uv run --no-project python scripts/preload_model.py
+RUN --mount=type=cache,target=/opt/hf-cache \
+    HF_HOME=/opt/hf-cache uv run --no-project python scripts/preload_model.py \
+ && mkdir -p /app/.cache/huggingface \
+ && cp -a /opt/hf-cache/. /app/.cache/huggingface/
 
 # Copy the rest of the project and install it
 COPY . .
