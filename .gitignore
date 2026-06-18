@@ -4,7 +4,8 @@ __pycache__/
 *.pyc
 chroma_db/
 data/laws/*.json
-data/books/processed_books.json
+# Copyrighted book sources and derived chunks — never commit
+data/books/
 eval/eval_results.json
 *.egg-info/
 .DS_Store
