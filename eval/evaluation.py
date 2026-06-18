@@ -58,6 +58,27 @@ TEST_CASES = {
         "房東可以漲租金嗎？",
         "公司商標如何申請？",
     ],
+    # 邊界測試（held-out：刻意不與 guardrail prompt 的 few-shot 範例重複）
+    "boundary_in_scope": [  # 邊界但屬勞工法（預期放行）
+        "醫師過勞死，雇主要負職業災害責任嗎？",
+        "外送平台的外送員算不算勞工？",
+        "飛航機師的休息時間有法律規範嗎？",
+        "醫護人員適用勞基法的工時規定嗎？",
+        "離職後競業禁止條款一定有效嗎？",
+        "雇主可以單方面把員工調到外縣市嗎？",
+        "最低服務年限約款合法嗎？",
+        "職場性騷擾可以向公司申訴嗎？",
+        "大量解僱勞工有特別的保護規定嗎？",
+        "勞工可以組工會嗎？",
+    ],
+    "boundary_out_scope": [  # 邊界但非勞工法（預期攔截）
+        "公司的營業稅申報期限是什麼時候？",
+        "上市公司獨立董事的薪酬如何規範？",
+        "公司商標要怎麼註冊？",
+        "新創公司增資發行新股的程序？",
+        "辦公室租約的押金可以退嗎？",
+        "員工旅遊推薦哪些景點？",
+    ],
 }
 
 
@@ -136,6 +157,49 @@ def run_guardrail_router_eval():
     return results
 
 
+def run_boundary_eval():
+    """邊界測試：量化 guardrail 在範疇邊界的對錯。"""
+    print("\n" + "=" * 60)
+    print("評估三：Guardrail 邊界測試")
+    print("=" * 60)
+
+    results = {
+        "boundary_in_scope": {
+            "correct": 0,
+            "total": len(TEST_CASES["boundary_in_scope"]),
+            "false_negative": [],
+        },
+        "boundary_out_scope": {
+            "correct": 0,
+            "total": len(TEST_CASES["boundary_out_scope"]),
+            "false_positive": [],
+        },
+    }
+
+    print("\n[邊界 - 應放行]")
+    for q in TEST_CASES["boundary_in_scope"]:
+        passed = engine.guardrail(q)
+        results["boundary_in_scope"]["correct"] += int(passed)
+        if not passed:
+            results["boundary_in_scope"]["false_negative"].append(q)
+        print(f"  {'✓' if passed else '✗ 誤擋'} {q}")
+
+    print("\n[邊界 - 應攔截]")
+    for q in TEST_CASES["boundary_out_scope"]:
+        passed = engine.guardrail(q)
+        results["boundary_out_scope"]["correct"] += int(not passed)
+        if passed:
+            results["boundary_out_scope"]["false_positive"].append(q)
+        print(f"  {'✓' if not passed else '✗ 誤放'} {q}")
+
+    print("\n邊界測試結果：")
+    for key, v in results.items():
+        pct = v["correct"] / v["total"] * 100 if v["total"] > 0 else 0
+        print(f"  {key}: {v['correct']}/{v['total']} = {pct:.1f}%")
+
+    return results
+
+
 def run_comparison_experiment(
     questions: list[str], condition: str
 ) -> list[dict]:
@@ -166,6 +230,9 @@ def main():
     # 評估一：功能驗證
     eval1_results = run_guardrail_router_eval()
 
+    # 評估三：Guardrail 邊界測試
+    boundary_results = run_boundary_eval()
+
     # 評估二：對照實驗（模型升級）
     print("\n" + "=" * 60)
     print("評估二：對照實驗（A型+B型 各10題）")
@@ -178,6 +245,7 @@ def main():
     output = {
         "eval1_guardrail_router": eval1_results,
         "eval2_comparison": records,
+        "eval3_boundary": boundary_results,
     }
     out_file = Path(__file__).parent / "eval_results.json"
     with open(out_file, "w", encoding="utf-8") as f:

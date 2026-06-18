@@ -288,6 +288,8 @@ uv run python eval/evaluation.py
 | Guardrail 放行準確率 | 25 題（範疇內） | 正確放行數 / 25 |
 | Router A 型準確率 | 10 題 | 正確分類數 / 10 |
 | Router B 型準確率 | 10 題 | 正確分類數 / 10 |
+| Guardrail 邊界放行 | 10 題（職災、醫護/機師工時、平台工作者、競業/調職等邊界但屬勞工法） | 正確放行數 / 10 |
+| Guardrail 邊界攔截 | 6 題（稅務、公司治理、智財等邊界但非勞工法） | 正確攔截數 / 6 |
 
 結果輸出至 `eval/eval_results.json`。
 
