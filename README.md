@@ -6,6 +6,15 @@
 
 ---
 
+## 線上展示
+
+### **網站預覽**：[https://ai.kleee.uk](https://ai.kleee.uk)
+
+> 線上版本部署於 Google Cloud Run，使用 Secret Manager 管理 `GROQ_API_KEY`，避免將 API Key 寫入程式碼或提交到 GitHub。
+> 由於 Cloud Run 設定為 `min-instances=0` 以降低閒置成本，服務休眠後的第一次開啟或第一次對話可能需要較長載入時間，等待模型與向量資料庫初始化後即可正常使用。
+
+---
+
 ## 系統畫面
 
 ```
@@ -39,11 +48,15 @@
 - **雙層保護機制**：Guardrail 過濾範疇外問題，避免 API 浪費
 - **智慧路由**：自動判斷問題類型，選擇最適合的檢索策略
 - **來源可追溯**：每個回答都附上引用的法條條號或書籍章節
-- **本地免費 Embedding**：sentence-transformers 本地執行，無需付費 API（LLM 採 Claude API，需付費）
+- **低成本架構**：使用 Groq API + sentence-transformers 本地 Embedding，Cloud Run 可用 `min-instances=0` 控制閒置成本
 
 ---
 
 ## RAG 架構說明
+
+![系統架構流程圖](static/architecture.png)
+
+> [點此開啟互動版架構圖](https://viewer.diagrams.net/?url=https://raw.githubusercontent.com/Chenche0119/hr-labor-law-rag/main/static/architecture.drawio)
 
 ### 問題類型說明
 
@@ -60,23 +73,27 @@
 |------|------|------|
 | 前端 | 原生 HTML / CSS / JavaScript | 單頁應用，無需框架 |
 | 後端 | Flask 3.0 | 輕量 Python Web 框架 |
-| LLM | Claude API（Opus 4.8） | 品質最佳，需 API Key |
+| LLM | Groq API（llama-3.3-70b-versatile） | 速度快，適合即時問答 |
 | Embedding | sentence-transformers（本地） | **免費**，支援中文多語言 |
 | 向量資料庫 | ChromaDB | 本地持久化儲存 |
-| Embedding 模型 | BAAI/bge-m3 | 多語言檢索 SOTA，支援 8192 tokens，約 2.3GB |
+| Embedding 模型 | paraphrase-multilingual-MiniLM-L12-v2 | 多語言，約 500MB |
+| 容器化 | Docker | 封裝 Python 環境與應用程式 |
+| 雲端部署 | Google Cloud Run | Serverless 容器部署，自動擴縮 |
 
 ---
 
 ## 資料來源
 
-### 法條庫
+### 法條庫（280 條）
 
-從[全國法規資料庫](https://law.moj.gov.tw)自動下載以下四部法規：
+從[全國法規資料庫](https://law.moj.gov.tw)自動下載：
 
-- 勞動基準法
-- 勞工退休金條例
-- 性別平等工作法
-- 勞工保險條例
+| 法規名稱 | 條數 |
+|---------|------|
+| 勞動基準法 | 86 條 |
+| 勞工退休金條例 | 58 條 |
+| 性別平等工作法 | 45 條 |
+| 勞工保險條例 | 91 條 |
 
 ### 書籍庫（需自行準備）
 
@@ -86,41 +103,13 @@
 
 ## 快速開始
 
-### 方式一：Docker 一鍵啟動（推薦）
-
-前後端與向量資料庫打包在單一容器，首次啟動會**自動下載法條並建立索引**。
-
-前置需求：[Docker](https://docs.docker.com/get-docker/) 與 Docker Compose、[Anthropic API Key](https://console.anthropic.com)。
-
-```bash
-# 1. 設定 API Key
-cp .env.example .env
-# 編輯 .env 填入 ANTHROPIC_API_KEY
-
-# 2. 建置並啟動（首次會建置 image 並自動灌入法條資料）
-docker compose up --build
-```
-
-開啟瀏覽器前往 **http://localhost:5001**。
-
-- 向量資料庫（`chroma_db/`）與資料（`data/`）以 volume 持久化，重啟不需重建索引。
-- 嵌入模型（BAAI/bge-m3）已預先打包進 image，首次啟動無需等待下載。
-- image 採 **CPU-only PyTorch**（移除整套 CUDA），體積約 9GB（原 CUDA 版約 18GB）；如需 GPU 推論需自行調整 torch 來源。
-- 啟動時以 `HF_HUB_OFFLINE=1` 從打包好的快取載入模型，避免網路不穩時卡住。
-- 加入書籍庫：將檔案放入 `data/books/` 後，於容器內執行
-  `docker compose exec app uv run python scripts/process_books.py && docker compose exec app uv run python scripts/build_index.py`。
-
----
-
-### 方式二：本機 uv 安裝
-
-#### 前置需求
+### 前置需求
 
 - Python 3.11+
-- [uv](https://docs.astral.sh/uv/)
-- [Anthropic API Key](https://console.anthropic.com)
+- [uv](https://docs.astral.sh/uv/)（建議）、conda 或 pip
+- [Groq API Key](https://console.groq.com)（免費註冊）
 
-#### 安裝步驟
+### 安裝步驟
 
 **1. 取得專案**
 
@@ -129,41 +118,53 @@ git clone https://github.com/Chenche0119/hr-labor-law-rag.git
 cd hr-labor-law-rag
 ```
 
-**2. 安裝依賴**
+**2. 建立虛擬環境並安裝依賴**
+
+使用 `uv`：
 
 ```bash
-uv sync
+uv venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+uv pip install -r requirements.txt
 ```
 
-> 首次執行時 sentence-transformers 會自動下載 bge-m3 模型（約 2.3GB），需要網路連線。
+或使用 `conda`：
+
+```bash
+conda env create -f environment.yml
+conda activate hr-labor-law-rag
+```
+
+> 首次執行時 sentence-transformers 會自動下載模型（約 500MB），需要網路連線。
 
 **3. 設定 API Key**
 
-前往 [console.anthropic.com](https://console.anthropic.com) 取得 API Key，然後：
+前往 [console.groq.com](https://console.groq.com) 免費註冊並取得 API Key，然後：
 
 ```bash
 cp .env.example .env
 # 用任意編輯器開啟 .env，填入你的 Key：
-# ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxxxxxx
+# GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxx
 ```
 
 **4. 下載法條並建立向量索引**
 
 ```bash
 # 下載 4 部勞工法規（約 10 秒）
-uv run python scripts/download_laws.py
+python scripts/download_laws.py
 
 # 建立 ChromaDB 向量索引（首次約 1~2 分鐘）
-uv run python scripts/build_index.py
+python scripts/build_index.py
 ```
 
 **5. 啟動系統**
 
 ```bash
-uv run python server.py
+python server.py
 ```
 
 開啟瀏覽器前往 **http://localhost:5001**
+
 
 ---
 
@@ -176,10 +177,10 @@ uv run python server.py
 cp your_book.docx data/books/
 
 # 2. 處理並切割成 chunk
-uv run python scripts/process_books.py
+python scripts/process_books.py
 
 # 3. 重新建立向量索引
-uv run python scripts/build_index.py
+python scripts/build_index.py
 ```
 
 ---
@@ -189,27 +190,28 @@ uv run python scripts/build_index.py
 ```
 hr-labor-law-rag/
 ├── server.py                  # Flask 後端（/api/query、/api/health）
-├── pyproject.toml             # 依賴與 ruff 設定（uv 管理）
+├── app.py                     # Streamlit 版本（備用）
+├── requirements.txt
+├── environment.yml            # conda 環境設定
+├── Dockerfile                 # Cloud Run 容器設定
+├── .dockerignore
+├── .gcloudignore
 ├── .env.example               # API Key 範本
-├── Dockerfile                 # 單容器映像（含預載嵌入模型）
-├── docker-compose.yml         # 一鍵啟動編排（含 volume 持久化）
-├── docker-entrypoint.sh       # 首次啟動自動下載法條並建索引
 ├── static/
 │   └── index.html             # 單頁 HTML 前端
 ├── src/
-│   ├── config.py              # 集中參數設定
 │   └── rag_engine.py          # 核心 RAG 引擎
 │                              #   Guardrail → Router → 檢索 → LLM
 ├── scripts/
 │   ├── download_laws.py       # 爬取全國法規資料庫
 │   ├── process_books.py       # 處理書籍 Word/PDF
-│   ├── preload_model.py       # 建置時預載嵌入模型
 │   └── build_index.py         # 建立 ChromaDB 向量索引
 ├── eval/
 │   └── evaluation.py          # 評估腳本
-└── data/
-    ├── laws/                  # 法條 JSON（自動產生）
-    └── books/                 # 書籍原始檔（手動放入）
+├── data/
+│   ├── laws/                  # 法條 JSON（自動產生）
+│   └── books/                 # 書籍原始檔（手動放入）
+└── chroma_db/                 # ChromaDB 向量資料庫（自動產生）
 ```
 
 ---
@@ -250,7 +252,7 @@ hr-labor-law-rag/
 ## 執行評估
 
 ```bash
-uv run python eval/evaluation.py
+python eval/evaluation.py
 ```
 
 評估內容：
@@ -270,11 +272,11 @@ uv run python eval/evaluation.py
 
 | 姓名 | 職責 |
 |------|------|
-| 林仰恩 | |
-| 陳姿吟 | |
-| 許文晴 | |
-| 林昀蓁 | |
-| 吳秉彥 | |
+| 林仰恩 | 書籍庫資料清洗、向量化與實務場景整合測試 |
+| 陳姿吟 | RAG 系統核心開發、API 串接、環境部署與向量資料庫建立 |
+| 許文晴 | 專案報告撰寫與系統邏輯整合 |
+| 林昀蓁 | 專案報告撰寫與系統邏輯整合 |
+| 吳秉彥 | GCP 託管網站、雲端部署與專案報告撰寫 |
 
 ---
 
