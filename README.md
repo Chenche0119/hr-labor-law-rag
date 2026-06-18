@@ -70,7 +70,7 @@
 | 模組 | 技術 | 說明 |
 |------|------|------|
 | 前端 | 原生 HTML / CSS / JavaScript | 單頁應用，無需框架 |
-| 後端 | Flask 3.0 | 輕量 Python Web 框架 |
+| 後端 | Flask 3.0 + Gunicorn | 輕量 Web 框架；Docker 以 Gunicorn（gthread）提供生產級服務 |
 | LLM | Claude API（Opus 4.8） | 品質最佳，需 API Key |
 | Embedding | sentence-transformers（本地） | **免費**，支援中文多語言 |
 | 向量資料庫 | ChromaDB | 本地持久化儲存 |

@@ -5,6 +5,7 @@ description = "RAG-based Taiwan labor-law query system for HR"
 requires-python = ">=3.11"
 dependencies = [
     "flask>=3.0.0",
+    "gunicorn>=22.0.0",
     "anthropic>=0.40.0",
     "chromadb>=0.4.0",
     "sentence-transformers>=3.0.0",

@@ -42,6 +42,13 @@ HTTP_HEADERS = {
     )
 }
 
-# Flask server
+# Web server
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "5001"))
+
+# Gunicorn (production WSGI, used in Docker). One worker keeps a single copy
+# of the embedding model in memory; threads handle concurrency for the
+# I/O-bound LLM calls. Timeout covers long answer generation.
+GUNICORN_WORKERS = int(os.getenv("GUNICORN_WORKERS", "1"))
+GUNICORN_THREADS = int(os.getenv("GUNICORN_THREADS", "4"))
+GUNICORN_TIMEOUT = int(os.getenv("GUNICORN_TIMEOUT", "120"))

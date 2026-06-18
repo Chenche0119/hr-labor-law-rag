@@ -35,5 +35,5 @@ if [ ! -f /app/data/laws/all_laws.json ] || [ "$(laws_count)" = "0" ]; then
     uv run python scripts/build_index.py
 fi
 
-echo "[entrypoint] starting server..."
-exec uv run python server.py
+echo "[entrypoint] starting server (gunicorn)..."
+exec uv run gunicorn -c gunicorn.conf.py server:app
