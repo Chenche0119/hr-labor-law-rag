@@ -508,13 +508,34 @@
     sendMessage();
   }
 
+  // ── Chat persistence (survives page refresh) ──
+  const CHAT_KEY = "hr_chat_history";
+  let chatHistory = [];
+
+  function saveHistory() {
+    try { localStorage.setItem(CHAT_KEY, JSON.stringify(chatHistory.slice(-60))); } catch (e) {}
+  }
+
+  function recordMessage(role, content) {
+    chatHistory.push({ role, content });
+    saveHistory();
+  }
+
+  function loadHistory() {
+    try { chatHistory = JSON.parse(localStorage.getItem(CHAT_KEY)) || []; }
+    catch (e) { chatHistory = []; }
+    for (const m of chatHistory) appendMessage(m.role, m.content, false);
+  }
+
   function clearChat() {
     messagesEl.innerHTML = '';
     messagesEl.appendChild(emptyState);
     emptyState.style.display = 'flex';
+    chatHistory = [];
+    try { localStorage.removeItem(CHAT_KEY); } catch (e) {}
   }
 
-  function appendMessage(role, content) {
+  function appendMessage(role, content, persist = true) {
     emptyState.style.display = 'none';
 
     const msg = document.createElement("div");
@@ -537,6 +558,7 @@
     msg.appendChild(bubble);
     messagesEl.appendChild(msg);
     messagesEl.scrollTop = messagesEl.scrollHeight;
+    if (persist) recordMessage(role, content);
     return bubble;
   }
 
@@ -725,7 +747,8 @@
   function closeModal() { document.getElementById("modal").classList.remove("open"); }
   function closeModalOutside(e) { if (e.target.id === "modal") closeModal(); }
 
-  // Focus input on load
+  // Restore previous conversation + focus input on load
+  loadHistory();
   inputEl.focus();
 </script>
 </body>
