@@ -6,6 +6,17 @@
 
 ---
 
+## 線上展示
+
+🌐 **GCP 雲端 Demo**：<https://ai.kleee.uk>
+
+> 線上版部署於 Google Cloud Run（為降低成本採較小 embedding 模型、`min-instances=0`），
+> 休眠後首次開啟需稍候初始化，僅供快速試玩。
+> **完整版（bge-m3 檢索 + Claude Opus 4.8 + 書籍庫）以下方本地 Docker 版為準。**
+> GCP 部署細節由團隊另行補充。
+
+---
+
 ## 系統畫面
 
 ```
