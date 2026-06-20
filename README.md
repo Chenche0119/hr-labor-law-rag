@@ -7,7 +7,7 @@
 ---
 
 ## 線上展示
-
+🌐 **完整功能影片 Demo**：<https://youtu.be/kly8Ly7tg-U?si=CtSKJ5VSNMb3YXeX>
 🌐 **GCP 雲端 Demo**：<https://ai.kleee.uk>
 
 > 線上版部署於 Google Cloud Run（為降低成本採較小 embedding 模型、`min-instances=0`），
